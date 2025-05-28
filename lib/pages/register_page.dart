@@ -1,77 +1,113 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:learn_api/services/auth_service.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
 
   @override
-  _RegisterPageState createState() => _RegisterPageState();
+  State<RegisterPage> createState() => _RegisterPageState();
 }
 
 class _RegisterPageState extends State<RegisterPage> {
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  bool _isLoading = false;
 
-  Future<void> register() async {
-    final url = Uri.parse('https://reqres.in/api/register');
-    final response = await http.post(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': 'reqres-free-v1', 
-      },
-      body: jsonEncode({
-        'email': emailController.text,
-        'password': passwordController.text,
-      }),
-    );
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      final token = data['token'];
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Registrasi berhasil! Token: $token')),
-      );
-
-      Navigator.pushReplacementNamed(context, '/login');
-    } else {
-      final errorBody = jsonDecode(response.body);
-      final errorMsg = errorBody['error'] ?? 'Registrasi gagal';
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMsg)),
-      );
+  void _register() async {
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      _showMessage('Email dan password harus diisi');
+      return;
     }
+
+    if (_passwordController.text != _confirmPasswordController.text) {
+      _showMessage('Password tidak sama');
+      return;
+    }
+
+    if (_passwordController.text.length < 6) {
+      _showMessage('Password minimal 6 karakter');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final result = await AuthService.register(
+        _emailController.text.trim(),
+        _passwordController.text,
+      );
+
+      if (result['success']) {
+        _showMessage('Registrasi berhasil!');
+        Navigator.pushReplacementNamed(context, '/');
+      } else {
+        _showMessage('Registrasi gagal: ${result['error']}');
+      }
+    } catch (e) {
+      _showMessage('Terjadi kesalahan: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Register')),
+      appBar: AppBar(
+        title: const Text('Register'),
+        automaticallyImplyLeading: false,
+      ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(20),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             TextField(
-              controller: emailController,
-              decoration: const InputDecoration(labelText: 'Email'),
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                border: OutlineInputBorder(),
+              ),
             ),
+            const SizedBox(height: 16),
             TextField(
-              controller: passwordController,
-              decoration: const InputDecoration(labelText: 'Password'),
+              controller: _passwordController,
               obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Password',
+                border: OutlineInputBorder(),
+              ),
             ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: register,
-              child: const Text('Register'),
+          
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _register,
+                child: _isLoading
+                    ? const CircularProgressIndicator()
+                    : const Text('Register'),
+              ),
             ),
+            const SizedBox(height: 16),
             TextButton(
-              onPressed: () {
-                Navigator.pushNamed(context, '/login');
-              },
+              onPressed: () => Navigator.pushReplacementNamed(context, '/'),
               child: const Text('Sudah punya akun? Login'),
             ),
           ],

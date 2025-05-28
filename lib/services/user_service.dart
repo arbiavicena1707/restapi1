@@ -11,9 +11,7 @@ class UserService {
       final body = response.body;
       final result = jsonDecode(body);
       List<User> users = List<User>.from(
-        result['data'].map(
-          (user) => User.fromJson(user),
-        ),
+        result['data'].map((user) => User.fromJson(user)),
       );
       return users;
     } catch (e) {
